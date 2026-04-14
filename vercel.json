@@ -12,7 +12,13 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/BACKEND/backend/api/index.php" },
-    { "source": "/(.*)", "destination": "/FRONTEND/frontend/dist/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "/BACKEND/backend/api/index.php"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/FRONTEND/frontend/dist/index.html"
+    }
   ]
 }
