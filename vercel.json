@@ -14,6 +14,7 @@
     }
   ],
   "rewrites": [
+<<<<<<< HEAD
     {
       "source": "/api/(.*)",
       "destination": "/BACKEND/backend/api/index.php"
@@ -28,3 +29,18 @@
     }
   ]
 }
+=======
+  {
+    "source": "/api/(.*)",
+    "destination": "/BACKEND/backend/api/index.php"
+  },
+  {
+    "source": "/assets/(.*)",
+    "destination": "/FRONTEND/frontend/dist/assets/$1"
+  },
+  {
+    "source": "/(.*)",
+    "destination": "/FRONTEND/frontend/dist/index.html"
+  }
+]
+>>>>>>> ecf79d38737642333107ddc49f32dfcb35298edf
