@@ -18,6 +18,10 @@
     },
     {
       "source": "/(.*)",
+      "destination": "/FRONTEND/frontend/dist/$1"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/FRONTEND/frontend/dist/index.html"
     }
   ]
