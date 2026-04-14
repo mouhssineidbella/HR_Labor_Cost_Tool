@@ -6,19 +6,13 @@
       "use": "@vercel/php"
     },
     {
-      "src": "FRONTEND/package.json",
+      "src": "FRONTEND/frontend/package.json",
       "use": "@vercel/static-build",
       "config": { "distDir": "dist" }
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/BACKEND/backend/api/index.php"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/FRONTEND/dist/index.html"
-    }
+    { "source": "/api/(.*)", "destination": "/BACKEND/backend/api/index.php" },
+    { "source": "/(.*)", "destination": "/FRONTEND/frontend/dist/index.html" }
   ]
 }
