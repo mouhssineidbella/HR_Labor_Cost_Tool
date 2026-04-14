@@ -8,17 +8,23 @@
     {
       "src": "FRONTEND/frontend/package.json",
       "use": "@vercel/static-build",
-      "config": { "distDir": "dist" }
+      "config": { 
+        "distDir": "dist" 
+      }
     }
   ],
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/BACKEND/backend/api/index.php"
+      "destination": "BACKEND/backend/api/index.php"
     },
     {
       "source": "/(.*)",
-      "destination": "/FRONTEND/frontend/dist/index.html"
+      "destination": "FRONTEND/frontend/dist/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "FRONTEND/frontend/dist/index.html"
     }
   ]
 }
