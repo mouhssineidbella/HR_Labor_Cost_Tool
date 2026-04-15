@@ -26,6 +26,10 @@
       "destination": "/BACKEND/backend/api/index.php"
     },
     {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
