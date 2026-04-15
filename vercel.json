@@ -16,7 +16,7 @@
       "src": "FRONTEND/frontend/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "FRONTEND/frontend/dist"
+        "distDir": "dist"
       }
     }
   ],
