@@ -3,13 +3,7 @@
   "builds": [
     {
       "src": "BACKEND/backend/api/index.php",
-      "use": "vercel-php",
-      "config": {
-        "excludeFiles": [
-          "BACKEND/backend/node_modules/**",
-          "FRONTEND/**"
-        ]
-      }
+      "use": "vercel-php"
     },
     {
       "src": "FRONTEND/frontend/package.json",
@@ -25,12 +19,8 @@
       "destination": "/BACKEND/backend/api/index.php"
     },
     {
-      "source": "/assets/(.*)",
-      "destination": "/FRONTEND/frontend/dist/assets/$1"
-    },
-    {
       "source": "/(.*)",
-      "destination": "/FRONTEND/frontend/dist/index.html"
+      "destination": "/index.html"
     }
   ]
 }
