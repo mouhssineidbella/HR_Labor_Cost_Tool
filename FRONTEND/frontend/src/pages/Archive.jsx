@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { Search, Loader, ShieldCheck, Archive as ArchiveIcon, Filter, X, FileText, TrendingUp } from 'lucide-react';
 
 const Archive = () => {
@@ -35,19 +35,17 @@ const Archive = () => {
   };
 
   const initArchive = async () => {
-    const token = localStorage.getItem('user_token');
-    const headers = { Authorization: `Bearer ${token}` };
 
     try {
       // 1. Charger les plantes
-      const plantsRes = await axios.get('http://127.0.0.1:8000/api/payroll/archived-plants', { headers });
+      const plantsRes = await api.get('/payroll/archived-plants');
       
       // Nettoyage pour le menu déroulant (YMK, YMO...)
       const cleanPlants = plantsRes.data.map(p => p.replace('Archived_', '').replace('Forecast_', ''));
       setAvailablePlants([...new Set(cleanPlants)]);
 
       // 2. Charger les données
-      const dataRes = await axios.get('http://127.0.0.1:8000/api/payroll/archive', { headers });
+      const dataRes = await api.get('/payroll/archive');
       
       const formatted = dataRes.data.map(item => {
         const row = item.row_data || {};
@@ -146,7 +144,7 @@ const Archive = () => {
         <div>
           <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
             <ArchiveIcon className="text-blue-600" size={32}/> 
-            {userRole === 'Central HR' ? 'Historique Global' : `Archives de ${userPlant}`}
+            {userRole === 'admin' ? 'Historique Global' : `Archives de ${userPlant}`}
           </h2>
           <p className="text-gray-500 mt-1">Consultation et filtrage des archives (Imports & Forecasts).</p>
         </div>
@@ -157,7 +155,7 @@ const Archive = () => {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-8 flex flex-col xl:flex-row gap-4 items-end xl:items-center">
         
         {/* Filtre 1: Usine */}
-        {userRole === 'Central HR' && (
+        {userRole === 'admin' && (
           <div className="w-full xl:w-48">
             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Usine</label>
             <div className="flex items-center gap-2 bg-blue-50/50 border border-blue-200 p-2 rounded-lg">

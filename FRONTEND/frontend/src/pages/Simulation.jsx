@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import axios from 'axios';
 import api from '../services/api'; 
 import { 
   Calculator, Users, Calendar, DollarSign, Download, 
@@ -27,6 +26,7 @@ const Simulation = () => {
    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
    
    const [showSuccess, setShowSuccess] = useState(false);
+   const [isPushing, setIsPushing] = useState(false);
 
    // Config
    const [config, setConfig] = useState({
@@ -57,7 +57,7 @@ const Simulation = () => {
       setParams(p => ({ ...p, plant: plant })); // Fixé auto
 
       fetchConfig();
-      fetchExistingProjections(token); 
+      fetchExistingProjections(); 
 
       const handleClickOutside = (event) => {
          if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -81,22 +81,21 @@ const Simulation = () => {
    // On utilise uniquement le plant du localStorage.
 
    // --- FETCH EXISTING DATA ---
-   const fetchExistingProjections = async (token) => {
+   const fetchExistingProjections = async () => {
        try {
-           const res = await axios.get('http://127.0.0.1:8000/api/projections', {
-               headers: { Authorization: `Bearer ${token}` }
-           }); 
+           const res = await api.get('/projections'); 
            if (res.data && Array.isArray(res.data)) {
                const existingData = res.data.map(item => {
-                   const baseSalary = parseFloat(item.base_salary);
-                   const costs = calculateProjection(baseSalary); 
                    return {
                        id: item.id || Date.now() + Math.random(),
                        plant: item.plant,
                        function: item.function,
                        startDate: item.start_date,
-                       baseSalary: baseSalary,
-                       ...costs
+                       baseSalary: parseFloat(item.base_salary),
+                       grossSalary: parseFloat(item.gross_salary),
+                       socialSecurity: 0, // Not stored in Projection schema, but we show totalCost/grossSalary which are stored
+                       healthInsurance: 0, 
+                       totalCost: parseFloat(item.total_cost)
                    };
                });
                setProjectedList(existingData);
@@ -106,79 +105,66 @@ const Simulation = () => {
        }
    };
 
-   // --- ENGINE CALCUL ---
-   const calculateProjection = (baseSalary) => {
-      const base = parseFloat(baseSalary);
-      if (isNaN(base)) return { grossSalary: 0, socialSecurity: 0, healthInsurance: 0, totalCost: 0 };
-
-      const transport = parseFloat(config.transport_fee);
-      const panier = parseFloat(config.panier_fee);
-      const canteen = parseFloat(config.canteen_fee);
-      const eid = parseFloat(config.eid_allowance);
-      
-      const grossSalary = base + transport + panier;
-
-      const cnssBase = (grossSalary >= 6000 ? 6000 : grossSalary);
-      const socialSecurity = (cnssBase * 0.0898) + (grossSalary * (0.016 + 0.064 + 0.0637));
-      
-      const amoBase = (grossSalary >= 30000 ? 30000 : grossSalary);
-      const healthInsurance = (amoBase * 0.0232) + (grossSalary * 0.00749);
-
-      const pensionScheme = grossSalary * parseFloat(config.cimr_rate);
-      const at = grossSalary * parseFloat(config.at_rate);
-
-      const holidaysAccruals = (base * 1.5) / 25;
-      const thirteenthMonth = 0; 
-
-      const totalCost = grossSalary + socialSecurity + healthInsurance + pensionScheme + at 
-                      + holidaysAccruals + thirteenthMonth + eid + canteen;
-
-      return { grossSalary, socialSecurity, healthInsurance, totalCost };
-   };
-
    // --- ADD NEW ---
-   const handleAddProjection = () => {
+   const handleAddProjection = async () => {
       const { baseSalary, count, functionName, startDate, plant } = params;
       if (!functionName) return alert("Veuillez saisir une fonction.");
       
       // Verification simple
       if (!plant) return alert("Erreur: Aucune usine détectée.");
 
-      const costs = calculateProjection(parseFloat(baseSalary));
-      const newEntries = Array.from({ length: parseInt(count) }).map((_, i) => ({
-         id: Date.now() + i, 
-         plant,
-         function: functionName,
-         startDate,
-         baseSalary: parseFloat(baseSalary),
-         ...costs
-      }));
+      try {
+          const res = await api.post('/payroll/calculate-preview', { base_salary: parseFloat(baseSalary) });
+          const costs = res.data;
 
-      setProjectedList(prev => [...prev, ...newEntries]);
-      setParams(p => ({ ...p, functionName: '' }));
+          const newEntries = Array.from({ length: parseInt(count) }).map((_, i) => ({
+             id: Date.now() + i, 
+             plant,
+             function: functionName,
+             startDate,
+             baseSalary: parseFloat(baseSalary),
+             grossSalary: costs.gross_salary,
+             socialSecurity: costs.social_security,
+             healthInsurance: costs.health_insurance,
+             totalCost: costs.total_cost
+          }));
+
+          setProjectedList(prev => [...prev, ...newEntries]);
+          setParams(p => ({ ...p, functionName: '' }));
+      } catch (error) {
+          alert("Erreur de calcul: " + (error.response?.data?.error || error.message));
+      }
    };
 
    // --- PUSH WITH TOAST ---
    const handlePushToForecast = async () => {
-      if (projectedList.length === 0) return;
+      if (projectedList.length === 0 || isPushing) return;
+      setIsPushing(true);
       
       try {
-         const token = localStorage.getItem('user_token');
          const mappedData = projectedList.map(item => ({
-             ...item,
+             plant: item.plant,
+             function: item.function,
              start_date: item.startDate,
-             base_salary: item.baseSalary 
+             base_salary: item.baseSalary,
+             gross_salary: item.grossSalary,
+             social_security: item.socialSecurity,
+             health_insurance: item.healthInsurance,
+             total_cost: item.totalCost,
+             count: item.count || 1
          }));
 
-         await axios.post('http://127.0.0.1:8000/api/payroll/save-projections', { data: mappedData }, {
-            headers: { Authorization: `Bearer ${token}` }
-         });
+         const response = await api.post('/payroll/save-projections', { data: mappedData });
+         console.log("Success:", response.data);
          
          setShowSuccess(true);
          setTimeout(() => setShowSuccess(false), 3000);
 
       } catch (error) {
          console.error("Erreur Push:", error);
+         alert("Erreur lors de l'envoi au Forecast: " + (error.response?.data?.message || error.message));
+      } finally {
+         setIsPushing(false);
       }
    };
 
@@ -225,7 +211,7 @@ const Simulation = () => {
       <div className="max-w-7xl mx-auto mt-6 px-4 font-sans mb-20 relative animate-fade-in">
          <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-800">Projection Forecast (N+1)</h2>
-            <p className="text-gray-500">Simulez le coût des recrutements futurs. {userRole === 'Plant HR' ? `(Restreint à : ${userPlant})` : '(Accès Global)'}</p>
+            <p className="text-gray-500">Simulez le coût des recrutements futurs. {userRole === 'plant_admin' ? `(Restreint à : ${userPlant})` : '(Accès Global)'}</p>
          </div>
 
          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
@@ -325,8 +311,8 @@ const Simulation = () => {
                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                   <h3 className="font-bold text-gray-800">Résultats ({projectedList.length})</h3>
                   <div className="flex gap-2">
-                     <button onClick={handlePushToForecast} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 font-bold shadow-md">
-                        <Database size={14} /> Push to Forecast
+                     <button onClick={handlePushToForecast} disabled={isPushing} className={`flex items-center gap-2 px-4 py-2 text-white text-sm rounded font-bold shadow-md transition-all ${isPushing ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                        <Database size={14} /> {isPushing ? "Envoi..." : "Push to Forecast"}
                      </button>
                      <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 font-medium">
                         <Download size={14} /> Excel

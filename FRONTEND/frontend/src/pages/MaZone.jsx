@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import XLSX from 'xlsx-js-style'; 
-import axios from 'axios';
 import api from '../services/api'; 
 import { UploadCloud, FileSpreadsheet, Loader, Download, RotateCcw, AlertTriangle, X } from 'lucide-react';
+import { formatCurrency } from '../utils/formatters';
 
 const MaZone = () => {
   const [data, setData] = useState([]);
@@ -11,138 +11,7 @@ const MaZone = () => {
   const [status, setStatus] = useState("idle");
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
-  // --- CONFIG ---
-  const [config, setConfig] = useState({
-    transport_fee: 325,
-    panier_fee: 300, 
-    canteen_fee: 300,
-    eid_allowance: 200, 
-    cimr_rate: 0.06,
-    at_rate: 0.0033
-  });
 
-  useEffect(() => {
-    const fetchConfig = async () => {
-      try {
-        const res = await api.get('/settings');
-        const map = {};
-        res.data.forEach(s => map[s.key] = s.value);
-        if (Object.keys(map).length > 0) setConfig(prev => ({...prev, ...map}));
-      } catch (err) { console.error("Error loading config", err); }
-    };
-    fetchConfig();
-  }, []);
-
-  // --- HELPERS ---
-  const parseVal = (val) => {
-      if (typeof val === 'number') return val;
-      if (typeof val === 'string') return parseFloat(val.replace(/\s/g, '').replace(',', '.')) || 0;
-      return 0;
-  };
-
-  const cleanIdValue = (val) => {
-    if (val === null || val === undefined) return '';
-    let str = val.toString().replace(',', '.');
-    const num = parseFloat(str);
-    if (!isNaN(num)) return Math.floor(num);
-    return val;
-  };
-
-  const getSeniorityYears = (dateVal) => {
-      if (!dateVal) return 0;
-      let dateObj = typeof dateVal === 'number' 
-        ? new Date((dateVal - 25569) * 86400 * 1000) 
-        : new Date(dateVal);
-      if (isNaN(dateObj.getTime())) return 0; 
-      const diff = new Date() - dateObj;
-      return diff / (1000 * 60 * 60 * 24 * 365.25);
-  };
-
-  const getSeniorityRate = (years) => {
-      if (years < 2) return 0;
-      if (years < 5) return 0.05;
-      if (years < 12) return 0.10;
-      if (years < 20) return 0.15;
-      if (years < 25) return 0.20;
-      return 0.25;
-  };
-
-  // --- CALCUL LOGIC ---
-  const calculateLaborCost = (row) => {
-    let idKey = Object.keys(row).find(k => k.toUpperCase().trim() === 'ID') || 'ID';
-    const finalID = cleanIdValue(row[idKey]);
-    const baseSalary = parseVal(row['Base Salary'] || row['Base salary']);
-    
-    // Seniority
-    let seniorityYears = parseVal(row['Seniority Years']);
-    if (row["date d'ancienneté"] || row["Date d'ancienneté"] || row["Seniority Date"]) {
-        seniorityYears = getSeniorityYears(row["date d'ancienneté"] || row["Date d'ancienneté"] || row["Seniority Date"]);
-    }
-    const seniorityRate = getSeniorityRate(seniorityYears);
-    const seniorityAllowance = baseSalary * seniorityRate;
-
-    // Loyalty
-    const loyaltyRate = parseVal(row['Loyalty %'] || 0);
-    const loyaltyAllowance = baseSalary * loyaltyRate;
-
-    // Base with Abs
-    const absHours = parseVal(row['Abs hours'] || 0);
-    const baseWithAbs = (191 - absHours) * (baseSalary / 191);
-
-    // OT
-    const ot25Hours = parseVal(row['OT 25% (Hours)'] || 0);
-    const ot50Hours = parseVal(row['OT 50% (Hours)'] || 0);
-    const ot100Hours = parseVal(row['OT 100% (Hours)'] || 0);
-    const otBankHours = parseVal(row['OT (bank Holiday) (Hours)'] || 0);
-    const nightHours = parseVal(row['Night shift Hours'] || 0);
-
-    const hourlyRate = baseSalary / 191;
-    const ot25Amt = hourlyRate * ot25Hours * 1.25;
-    const ot50Amt = hourlyRate * ot50Hours * 1.50;
-    const ot100Amt = hourlyRate * ot100Hours * 2.00;
-    const otBankAmt = hourlyRate * otBankHours * 1.00; 
-    const nightAllowance = nightHours * hourlyRate * 0.20;
-
-    // Allowances
-    const attendanceBonus = parseVal(row['Attendance bonus'] || 0);
-    const aidFamilial = parseVal(row['AID Familial'] || 0);
-    const functionalAllowance = parseVal(row['Functional allowance'] || 0);
-    const transportImpo = parseVal(row['Ind Transport Impo'] || 0);
-    const indPanier = parseVal(row['Ind. de panier'] || 0);
-    
-    // Gross
-    const grossSalary = baseWithAbs + ot25Amt + ot50Amt + ot100Amt + otBankAmt + nightAllowance 
-                      + loyaltyAllowance + seniorityAllowance + functionalAllowance + indPanier 
-                      + transportImpo + aidFamilial + attendanceBonus;
-
-    // Charges
-    const cnssBase = (grossSalary >= 6000 ? 6000 : grossSalary);
-    const socialSecurity = (cnssBase * 0.0898) + (grossSalary * (0.016 + 0.064 + 0.0637));
-    const amoBase = (grossSalary >= 30000 ? 30000 : grossSalary);
-    const healthInsurance = (amoBase * 0.0232) + (grossSalary * 0.00749);
-    const cimrVal = grossSalary * parseFloat(config.cimr_rate);
-    const atVal = grossSalary * parseFloat(config.at_rate);
-
-    // Accruals & Benefits
-    const soldeConge = parseVal(row['Solde congé'] || 0);
-    const holidayAccrual = soldeConge > 0 ? (1.5 * baseSalary / 25) : 0;
-    const month13 = seniorityYears > 3 ? (baseSalary / 12) * 1.3 : 0;
-    const transportFixed = parseFloat(config.transport_fee);
-    const canteenFixed = parseFloat(config.canteen_fee);
-    const eidAllowance = parseFloat(config.eid_allowance);
-
-    const totalCost = grossSalary + socialSecurity + healthInsurance + cimrVal + atVal 
-                    + transportFixed + canteenFixed + holidayAccrual + month13 + eidAllowance;
-
-    // Return Row with standardized keys for calculation usage
-    return {
-        ...row,
-        finalID, baseSalary, seniorityYears, seniorityRate, seniorityAllowance, loyaltyRate, loyaltyAllowance,
-        baseWithAbs, ot25Amt, ot50Amt, ot100Amt, otBankAmt, nightAllowance,
-        grossSalary, socialSecurity, healthInsurance, cimrVal, atVal,
-        transportFixed, canteenFixed, holidayAccrual, month13, eidAllowance, totalCost
-    };
-  };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -165,9 +34,8 @@ const MaZone = () => {
                         const cleanHeader = header ? header.trim() : `Col_${index}`;
                         obj[cleanHeader] = row[index] !== undefined ? row[index] : null;
                     });
-                    return calculateLaborCost(obj); 
+                    return obj; 
                 });
-                setData(formattedData);
                 uploadToBackend(formattedData);
             } else { setLoading(false); setMsg("Fichier vide."); }
         } catch (error) { setMsg("Erreur fichier."); setLoading(false); }
@@ -176,15 +44,18 @@ const MaZone = () => {
     e.target.value = null;
   };
 
-  const uploadToBackend = async (calculatedData) => {
+  const uploadToBackend = async (rawData) => {
     try {
-      const token = localStorage.getItem('user_token');
-      await axios.post('http://127.0.0.1:8000/api/payroll/upload', { data: calculatedData }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setMsg("✅ Données archivées !");
+      const res = await api.post('/payroll/upload', { data: rawData });
+      setData(res.data.data);
+      setMsg(res.data.message || "✅ Données calculées et archivées !");
       setStatus("success");
-    } catch (e) { setMsg("❌ Erreur transfert."); setStatus("error"); } finally { setLoading(false); }
+    } catch (e) { 
+      setMsg("❌ Erreur transfert."); 
+      setStatus("error"); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleResetTrigger = () => { if(data.length) setIsResetModalOpen(true); };
@@ -321,14 +192,38 @@ const MaZone = () => {
           <div className="overflow-x-auto overflow-y-auto max-h-[600px]">
             <table className="w-full text-sm text-left text-gray-500 border-collapse">
               <thead className="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0 z-10">
-                <tr>{Object.keys(data[0]).map((key) => (<th key={key} className="px-6 py-3 whitespace-nowrap border-b bg-gray-100">{key}</th>))}</tr>
+                <tr>
+                  {Object.keys(data[0])
+                    .filter(key => !key.startsWith('YZK_'))
+                    .map((key) => (<th key={key} className="px-6 py-3 whitespace-nowrap border-b bg-gray-100">{key}</th>))
+                  }
+                </tr>
               </thead>
               <tbody>
                 {data.map((row, i) => (
                   <tr key={i} className="bg-white border-b hover:bg-gray-50 transition-colors">
-                    {Object.values(row).map((val, j) => (
-                      <td key={j} className="px-6 py-4 whitespace-nowrap">{typeof val === 'string' && val.includes('.') && !isNaN(val) ? parseFloat(val).toLocaleString() : val}</td>
-                    ))}
+                    {Object.keys(row)
+                      .filter(key => !key.startsWith('YZK_'))
+                      .map((key, j) => {
+                        const val = row[key];
+                        const lowerKey = key.toLowerCase().trim();
+                        const isExcluded = lowerKey === 'id' || lowerKey === 'finalid' || lowerKey === 'matricule'
+                          || lowerKey === 'cost centre' || lowerKey === 'cost center'
+                          || lowerKey === 'employee id' || lowerKey === 'unite';
+                        const isNumber = typeof val === 'number';
+                        const isStringNumber = typeof val === 'string' && val.includes('.') && !isNaN(parseFloat(val));
+                        
+                        let displayVal = val;
+                        if (isExcluded && isNumber) {
+                          displayVal = Number.isInteger(val) ? val : Math.floor(val);
+                        } else if (!isExcluded && (isNumber || isStringNumber)) {
+                          displayVal = formatCurrency(val);
+                        }
+                        
+                        return (
+                          <td key={j} className="px-6 py-4 whitespace-nowrap">{displayVal}</td>
+                        );
+                    })}
                   </tr>
                 ))}
               </tbody>

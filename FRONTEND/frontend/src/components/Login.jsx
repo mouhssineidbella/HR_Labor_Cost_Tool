@@ -22,7 +22,9 @@ const Login = () => {
         const { token, user } = response.data;
         localStorage.setItem('user_token', token);
         localStorage.setItem('user_role', user.role);
-        localStorage.setItem('user_plant', user.plant);
+        localStorage.setItem('user_role_label', user.role_label);
+        localStorage.setItem('user_plant_id', user.plant_id || '');
+        localStorage.setItem('user_plant', user.plant_name);
         localStorage.setItem('user_name', user.name);
         navigate('/ma-zone');
     } catch (err) {

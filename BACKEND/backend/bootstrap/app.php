@@ -12,11 +12,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // - Hna fin kan-7iyydou l-mouchkil dyal CSRF Error 500
+        // CSRF exceptions
         $middleware->validateCsrfTokens(except: [
             'api/projections',
             'api/projections/*',
             'api/payroll/*'
+        ]);
+
+        // Register custom middleware aliases
+        $middleware->alias([
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'plant.scope' => \App\Http\Middleware\PlantScopeMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

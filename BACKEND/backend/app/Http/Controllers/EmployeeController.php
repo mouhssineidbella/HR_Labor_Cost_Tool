@@ -41,6 +41,10 @@ class EmployeeController extends Controller
             $data = Excel::toArray([], $file)[0];
 
             DB::beginTransaction();
+
+            // Clear old data for this specific plant before importing new data to prevent duplicates
+            Employee::where('plant_id', $plantId)->delete();
+
             $count = 0; $updated = 0; $created = 0;
 
             foreach ($data as $index => $row) {
@@ -147,11 +151,11 @@ class EmployeeController extends Controller
     {
         if (!$value) return null;
         try {
-          
             if (is_numeric($value)) {
-                return Date::excelToDateTimeObject((float)$value);
+                $dateObj = Date::excelToDateTimeObject((float)$value);
+                return \Carbon\Carbon::instance($dateObj)->format('Y-m-d');
             }
-            return Carbon::parse($value);
+            return Carbon::parse($value)->format('Y-m-d');
         } catch (\Throwable $e) {
             return null;
         }

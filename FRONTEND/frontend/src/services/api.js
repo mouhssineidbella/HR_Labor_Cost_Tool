@@ -1,7 +1,6 @@
 // src/services/api.js
 import axios from 'axios';
 
-// Hada howa Lien dyal Laravel API dyalek
 const api = axios.create({
   baseURL: 'http://127.0.0.1:8000/api', 
   headers: {
@@ -10,7 +9,7 @@ const api = axios.create({
   }
 });
 
-// Hada kiy-zid Token auto f kol request bach Backend y3rfek
+// Request interceptor: Auto-attach token
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('user_token');
   if (token) {
@@ -18,5 +17,22 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Response interceptor: Handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response) {
+      const status = error.response.status;
+      
+      // 401 Unauthorized -> Token expired or invalid -> Redirect to login
+      if (status === 401) {
+        localStorage.clear();
+        window.location.href = '/';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 const EmployeeList = () => {
     const [employees, setEmployees] = useState([]);
 
     const fetchEmployees = async () => {
         try {
-            const res = await axios.get('http://127.0.0.1:8000/api/employees?plant_id=1');
+            const plantId = localStorage.getItem('user_plant');
+            const res = await api.get('/employees', { params: { plant_id: plantId } });
             setEmployees(res.data);
         } catch (error) {
             console.error("Erreur fetching data", error);

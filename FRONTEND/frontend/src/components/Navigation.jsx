@@ -29,7 +29,7 @@ const Navigation = () => {
       {/* Top Bar */}
       <div className="bg-gray-900 text-white px-6 py-2 flex justify-between items-center text-sm">
         <span className="font-medium opacity-80">
-           {role === 'Central HR' ? '👑 Admin (Central)' : `🏭 Plant HR (${plant})`}
+           {role === 'admin' ? `👑 Global Admin — ${plant || 'N/A'}` : `🏭 Plant Admin (${plant})`}
         </span>
         <button onClick={handleLogout} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded flex items-center gap-2 transition cursor-pointer">
           <LogOut size={14} /> Déconnexion
@@ -71,7 +71,7 @@ const Navigation = () => {
           </NavLink>
 
           {/* --- SECTION EXCLUSIVE ADMIN (CENTRAL HR) --- */}
-          {role === 'Central HR' && (
+          {role === 'admin' && (
             <>
               <div className="w-[1px] h-8 bg-gray-200 mx-2 hidden md:block"></div>
               

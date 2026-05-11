@@ -3,13 +3,24 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use App\Models\Projection; // <--- Hada huwa l-Model l-wa7id li khasso y-koun hna
-
+use App\Models\Projection;
+use App\Models\Plant;
 class ProjectionController extends Controller
 {
-    // 1. GET: Jib ga3 s-Simulations
-    public function index() {
-        return response()->json(Projection::all(), 200);
+    // 1. GET: Jib ga3 s-Simulations (Scoped by plant)
+    public function index(Request $request) {
+        $user = $request->user();
+
+        if ($user->role === 'admin') {
+            return response()->json(Projection::all(), 200);
+        }
+
+        $plant = Plant::find($user->plant_id);
+        if ($plant) {
+            return response()->json(Projection::where('plant', $plant->name)->get(), 200);
+        }
+
+        return response()->json([], 200);
     }
 
     // 2. POST: Sajjél Simulations jdad (Push to Forecast)
@@ -38,6 +49,24 @@ class ProjectionController extends Controller
         try {
             Projection::truncate(); // Msa7 koulchi
             return response()->json(['message' => 'Simulations Cleared!'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    // 4. RESET: Delete all projections for current user's plant
+    public function reset(Request $request) {
+        try {
+            $user = $request->user();
+            if ($user->role === 'admin') {
+                Projection::truncate();
+            } else {
+                $plant = Plant::find($user->plant_id);
+                if ($plant) {
+                    Projection::where('plant', $plant->name)->delete();
+                }
+            }
+            return response()->json(['message' => 'Workspace Projections Cleared!'], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

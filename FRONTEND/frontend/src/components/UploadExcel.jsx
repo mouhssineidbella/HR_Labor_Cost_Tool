@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 
 // --- LISTE DES FONCTIONS STANDARDS ---
 const STANDARD_ROLES = [
@@ -34,10 +34,7 @@ const UploadExcel = () => {
     const [usersList, setUsersList] = useState([]);
     const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'plant_manager', plant_id: '' });
 
-    const getAuthHeaders = () => {
-        const token = localStorage.getItem('token');
-        return { headers: { 'Authorization': `Bearer ${token}` } };
-    };
+
 
     // 1. INITIALISATION
     useEffect(() => {
@@ -51,24 +48,24 @@ const UploadExcel = () => {
 
     // 2. FETCH FONCTIONS
     const fetchPlants = async () => {
-        try { const res = await axios.get('http://127.0.0.1:8000/api/plants', getAuthHeaders()); setPlants(res.data); } catch(e){}
+        try { const res = await api.get('/plants'); setPlants(res.data); } catch(e){}
     };
     const fetchEmployees = async (pid=null) => {
         try {
             const params = pid ? { plant_id: pid } : {};
-            const res = await axios.get('http://127.0.0.1:8000/api/employees', { ...getAuthHeaders(), params });
+            const res = await api.get('/employees', { params });
             setEmployees(res.data);
         } catch(e){}
     };
     const fetchAverages = async () => {
         try {
             const params = (userRole === 'admin' && selectedPlantFilter) ? { plant_id: selectedPlantFilter } : {};
-            const res = await axios.get('http://127.0.0.1:8000/api/projection/averages', { ...getAuthHeaders(), params });
+            const res = await api.get('/projection/averages', { params });
             setAverages(res.data);
         } catch(e){}
     };
     const fetchUsers = async () => {
-        try { const res = await axios.get('http://127.0.0.1:8000/api/users', getAuthHeaders()); setUsersList(res.data); } catch(e){}
+        try { const res = await api.get('/users'); setUsersList(res.data); } catch(e){}
     };
 
     // 3. NAVIGATION (SWITCH TABS)
@@ -88,7 +85,7 @@ const UploadExcel = () => {
         const formData = new FormData();
         formData.append('file', file);
         try {
-            const res = await axios.post('http://127.0.0.1:8000/api/upload-actual', formData, { ...getAuthHeaders(), 'Content-Type': 'multipart/form-data' });
+            const res = await api.post('/upload-actual', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
             setMessage('✅ ' + res.data.message);
             if(viewMode === 'local') fetchEmployees(userPlantId);
         } catch (error) { setMessage('❌ Erreur: ' + (error.response?.data?.message || 'Erreur')); }
@@ -97,7 +94,7 @@ const UploadExcel = () => {
     const handleDownload = async () => {
         try {
             const targetId = viewMode === 'local' ? userPlantId : selectedPlantFilter;
-            const response = await axios.get('http://127.0.0.1:8000/api/employees/export', { ...getAuthHeaders(), params: { plant_id: targetId }, responseType: 'blob' });
+            const response = await api.get('/employees/export', { params: { plant_id: targetId }, responseType: 'blob' });
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
@@ -143,7 +140,7 @@ const UploadExcel = () => {
     const handleCreateUser = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://127.0.0.1:8000/api/users', newUser, getAuthHeaders());
+            await api.post('/users', newUser);
             setMessage('✅ Utilisateur créé !');
             setNewUser({ name: '', email: '', password: '', role: 'plant_manager', plant_id: '' });
             fetchUsers();
@@ -152,7 +149,7 @@ const UploadExcel = () => {
 
     const handleDeleteUser = async (id) => {
         if(!window.confirm("Supprimer?")) return;
-        try { await axios.delete(`http://127.0.0.1:8000/api/users/${id}`, getAuthHeaders()); fetchUsers(); } catch(e){}
+        try { await api.delete(`/users/${id}`); fetchUsers(); } catch(e){}
     };
 
     // --- RENDER ---

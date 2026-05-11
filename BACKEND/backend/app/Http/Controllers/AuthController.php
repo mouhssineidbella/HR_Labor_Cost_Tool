@@ -21,13 +21,24 @@ class AuthController extends Controller
             return response()->json(['message' => 'Mot de passe incorrect'], 401);
         }
 
-        
         $user = Auth::user();
         $token = $user->createToken('myapptoken')->plainTextToken;
 
-       
+        // Load plant relationship for any user with plant_id
+        if ($user->plant_id) {
+            $user->load('plant');
+        }
+
         return response()->json([
-            'user' => $user,
+            'user' => [
+                'id'         => $user->id,
+                'name'       => $user->name,
+                'email'      => $user->email,
+                'role'       => $user->role,
+                'role_label' => $user->role_label,
+                'plant_id'   => $user->plant_id,
+                'plant_name' => $user->plant ? $user->plant->name : 'N/A',
+            ],
             'token' => $token
         ], 200);
     }

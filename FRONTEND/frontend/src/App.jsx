@@ -10,7 +10,7 @@ import Utilisateurs from './pages/Utilisateurs';
 import Navigation from './components/Navigation';
 import Archive from './pages/Archive';
 import Forecast from './pages/Forecast';
-// Settings removed import
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Layout Component
 const Layout = ({ children }) => {
@@ -35,15 +35,15 @@ function App() {
           {/* Page par défaut = Login */}
           <Route path="/" element={<Login />} />
           
-          {/* Pages Internes */}
-          <Route path="/ma-zone" element={<MaZone />} />
-          <Route path="/global" element={<Global />} />
-          <Route path="/simulation" element={<Simulation />} />
-          <Route path="/utilisateurs" element={<Utilisateurs />} />
-          <Route path="/archive" element={<Archive />} />
-          <Route path="/forecast" element={<Forecast />} />
+          {/* Pages Protégées (Auth Required) */}
+          <Route path="/ma-zone" element={<ProtectedRoute><MaZone /></ProtectedRoute>} />
+          <Route path="/global" element={<ProtectedRoute><Global /></ProtectedRoute>} />
+          <Route path="/simulation" element={<ProtectedRoute><Simulation /></ProtectedRoute>} />
+          <Route path="/archive" element={<ProtectedRoute><Archive /></ProtectedRoute>} />
+          <Route path="/forecast" element={<ProtectedRoute><Forecast /></ProtectedRoute>} />
           
-          {/* Settings Route Removed */}
+          {/* Admin Only */}
+          <Route path="/utilisateurs" element={<ProtectedRoute requiredRole="admin"><Utilisateurs /></ProtectedRoute>} />
           
         </Routes>
       </Layout>

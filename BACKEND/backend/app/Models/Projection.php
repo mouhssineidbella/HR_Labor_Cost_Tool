@@ -9,6 +9,21 @@ class Projection extends Model
 {
     use HasFactory;
     
-    // Had l-ligne hwa l-7ell: ila ma-kanch, Laravel kiy-bloki l-7fḍ (Error 500)
-    protected $guarded = []; 
+    protected $fillable = [
+        'plant',
+        'function',
+        'start_date',
+        'base_salary',
+        'gross_salary',
+        'total_cost',
+        'count'
+    ];
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\PlantScope);
+    }
 }

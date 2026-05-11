@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { RefreshCw, TrendingUp, DollarSign } from 'lucide-react'; 
-import axios from 'axios'; 
+import api from '../services/api'; 
 
 const Global = () => {
   const [loading, setLoading] = useState(true);
@@ -16,12 +16,8 @@ const Global = () => {
   const fetchData = async () => {
     try {
         setLoading(true);
-        const token = localStorage.getItem('user_token');
-        if (!token) { setLoading(false); return; }
 
-        const response = await axios.get('http://127.0.0.1:8000/api/payroll/list', {
-            headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await api.get('/payroll/list');
 
         // DEBUG: Bach tchouf d-data kifach dayra f Console
         console.log("Data Backend:", response.data);
